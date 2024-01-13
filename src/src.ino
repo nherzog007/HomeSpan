@@ -25,48 +25,42 @@
  *  
  ********************************************************************************/
 
-// This is a placeholder .ino file that allows you to easily edit the contents of this library using the Arduino IDE,
-// as well as compile and test from this point.  This file is ignored when the library is included in other sketches.
-
 #include "HomeSpan.h"
 
-struct RemoteTempSensor : Service::TemperatureSensor {
+struct LED_Service : Service::LightBulb {
 
-  SpanCharacteristic *temp;
-  SpanCharacteristic *fault;
-  SpanPoint *remoteTemp;
-  const char *name;
-  float temperature;
+  int ledPin;
+  SpanCharacteristic *power;
   
-  RemoteTempSensor(const char *name, const char*macAddress, boolean is8266=false) : Service::TemperatureSensor(){
+  LED_Service(int ledPin) : Service::LightBulb(){
+    power=new Characteristic::On();
+    this->ledPin=ledPin;
+    pinMode(ledPin,OUTPUT);    
+  }
 
-    this->name=name;
-    
-    temp=new Characteristic::CurrentTemperature(-10.0);      // set initial temperature
-    temp->setRange(-50,100);                                 // expand temperature range to allow negative values
+  boolean update(){            
+    digitalWrite(ledPin,power->getNewVal());   
+    return(true);  
+  }
 
-    fault=new Characteristic::StatusFault(1);                // set initial state = fault
-
-    remoteTemp=new SpanPoint(macAddress,0,sizeof(float),1,is8266);    // create a SpanPoint with send size=0 and receive size=sizeof(float)
-
-  } // end constructor
-
-  void loop(){
-       
-    if(remoteTemp->get(&temperature)){      // if there is data from the remote sensor
-      temp->setVal(temperature);            // update temperature
-      fault->setVal(0);                     // clear fault
-       
-      LOG1("Sensor %s update: Temperature=%0.2f\n",name,temperature*9/5+32);
-      
-    } else if(remoteTemp->time()>60000 && !fault->getVal()){    // else if it has been a while since last update (60 seconds), and there is no current fault
-      fault->setVal(1);                                         // set fault state
-      LOG1("Sensor %s update: FAULT\n",name);
-    }
-    
-  } // loop
-  
 };
+      
+//////////////////////////////////////
+
+struct invertedLED : Blinkable {        // create a child class derived from Blinkable
+
+  int pin;                              // variable to store the pin number
+  
+  invertedLED(int pin) : pin{pin} {     // constructor that initializes the pin parameter
+    pinMode(pin,OUTPUT);                // set the pin to OUTPUT
+    digitalWrite(pin,HIGH);             // set pin HIGH (which is off for an inverted LED)
+  }
+
+  void on() override { digitalWrite(pin,LOW); }        // required function on() - sets pin LOW
+  void off() override { digitalWrite(pin,HIGH); }      // required function off() - sets pin HIGH
+  int getPin() override { return(pin); }               // required function getPin() - returns pin number
+};
+
 
 //////////////////////////////////////
 
@@ -74,35 +68,25 @@ void setup() {
   
   Serial.begin(115200);
 
-  homeSpan.setLogLevel(1);
+//  homeSpan.setLogLevel(-1);
+//  homeSpan.setSerialInputDisable(true);
+  homeSpan.enableOTA();
 
-  homeSpan.begin(Category::Bridges,"Sensor Hub");
+  homeSpan.setStatusDevice(new invertedLED(13));    // set Status LED to be a new Blinkable device attached to pin 13
+  homeSpan.setStatusAutoOff(30);
 
-  new SpanAccessory();  
-    new Service::AccessoryInformation();
-      new Characteristic::Identify(); 
-      
-  new SpanAccessory();
-    new Service::AccessoryInformation();
-      new Characteristic::Identify();
-      new Characteristic::Name("Indoor Temp");
-    new RemoteTempSensor("Device 1","AC:67:B2:77:42:20");        // pass MAC Address of Remote Device
-
-  new SpanAccessory();
-    new Service::AccessoryInformation();
-      new Characteristic::Identify(); 
-      new Characteristic::Name("Outdoor Temp");
-    new RemoteTempSensor("Device 2","BC:FF:4D:40:8E:71",true);        // pass MAC Address of Remote Device with 8266 flag set (will use AP MAC Address)
-
+  homeSpan.begin(Category::Lighting,"HomeSpan LED");
   
-} // end of setup()
+  new SpanAccessory();   
+    new Service::AccessoryInformation(); 
+      new Characteristic::Identify();
+    new LED_Service(13);  
+}
 
 //////////////////////////////////////
 
-void loop(){
-  
+void loop(){ 
   homeSpan.poll();
-
-} // end of loop()
+}
 
 //////////////////////////////////////

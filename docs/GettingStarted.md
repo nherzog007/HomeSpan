@@ -8,7 +8,7 @@ Since HomeSpan is a library designed for Arduino's Integrated Development Enviro
 
 #### Step 2: Install the Arduino-ESP32 Core
 
-The Arduino IDE comes with built-in compilers and support for a variety of Arduino boards, such as the Arduino Uno and Arduino Nano.  However, the IDE does not natively support programming for the ESP32.  Fortunately, the IDE allows you to download and install *cores* for other micro-controllers, including the ESP32, so  they can be programming from within the Arduino environment.  See the [Espressif Arduino-ESP32 GitHub page](https://github.com/espressif/arduino-esp32#arduino-core-for-esp32-wifi-chip) for complete instructions on how to install the Arduino-ESP32 core into the Arduino IDE using the [Arduino IDE Board Manager](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md).
+The Arduino IDE comes with built-in compilers and support for a variety of Arduino boards, such as the Arduino Uno and Arduino Nano.  However, the IDE does not natively support programming for the ESP32.  Fortunately, the IDE allows you to download and install *cores* for other micro-controllers, including the ESP32, so  they can be programming from within the Arduino environment.  See the [Espressif Arduino-ESP32 GitHub page](https://github.com/espressif/arduino-esp32) for details on the Arduino-ESP32 Core, as well as for instructions on how to install easily this core (and keep it updated) from within the Arduino IDE using the [Arduino IDE Board Manager](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html#installing-using-arduino-ide).
 
 #### Step 3: Install HomeSpan
 
@@ -20,7 +20,7 @@ HomeSpan is packaged as a standard Arduino library and can be installed either a
 
 #### Step 4: Acquire an ESP32 Board
 
-ESP32 development boards are widely available in different configurations from most electronics hobby sites, such as [Adafruit](https://www.adafruit.com) and [Sparkfun](https://www.sparkfun.com).  HomeSpan was developed using a dual-core ESP32-WROOM-32 (the [Huzzah32 from Adafruit](https://www.adafruit.com/product/3619)) but should work equally well on dual-core ESP32-WROVER chips.  HomeSpan has *not* been tested on any single-core ESP32 chips, such as the ESP32-S2.
+ESP32 development boards are widely available in different configurations from most electronics hobby sites, such as [Adafruit](https://www.adafruit.com) and [Sparkfun](https://www.sparkfun.com).  HomeSpan works with any ESP32 supported by the [Arduino-ESP32 Core](https://docs.espressif.com/projects/arduino-esp32/en/latest/getting_started.html#supported-soc-s), including the original ESP32, the ESP32-S2 and ESP32&#8209;S3, and the ESP32-C3.
 
 #### Step 5: Install any required USB Drivers
 
@@ -52,7 +52,7 @@ In addition to being able to configure a HomeSpan device using the [HomeSpan CLI
 
 The Control Button should be installed between ground and any pin on the ESP32 that can serve as an input.  To inform HomeSpan of which pin you chose, you must call the method `homeSpan.setControlPin(pin)` near the top of your sketch (see the [HomeSpan API Reference](Reference.md) for details), else HomeSpan will assume a Control Button has **not** be installed.
 
-Similarly, the Status LED can be connected to any pin on the ESP32 that can serve as an output (and grounded through an appropriately-sized current-limiting resistor).  To inform HomeSpan of which pin you chose, you must call the method `homeSpan.setStatusPin(pin)` near the top of your sketch, else HomeSpan will assume a Status LED has **not** been installed.  Note some ESP32 boards have a built-in LED --- it is fine to use this for the Status LED if it is a simple on/off LED, *not* an addressable color LED that requires a special driver.
+Similarly, the Status LED can be connected to any pin on the ESP32 that can serve as an output (and grounded through an appropriately-sized current-limiting resistor).  To inform HomeSpan of which pin you chose, you must call the method `homeSpan.setStatusPin(pin)` near the top of your sketch, else HomeSpan will assume a Status LED has **not** been installed.  Note some ESP32 boards have a built-in LED --- it is fine to use this for the Status LED if it is a simple on/off LED.  If your built-in LED is an RGB NeoPixel, or if you would like to use an external RGB NeoPixel for your Status LED, call the method `homeSpan.setStatusPixel(pin)` instead, in which case HomeSpan will use its NeoPixel driver to operate the status LED.
 
 Using the Control Button and Status LED to configure a standalone HomeSpan device, including starting HomeSpan's temporary WiFi network to configure the device's WiFi Credentials and HomeKit Setup Code, is fully explained in the [HomeSpan User Guide](UserGuide.md).
 
@@ -62,7 +62,7 @@ If you've not yet read through the [HomeSpan API Overview](Overview.md) page, yo
 
 Next, explore the tutorial sketches, upload a few, and see how they work. The examples start simple and grow in complexity, taking you through all the functions and features of HomeSpan.  Along the way you'll also learn a lot of HomeKit tips and tricks.  See [HomeSpan Tutorials](Tutorials.md) for a summary of all the included examples.  Find something in a sketch you don't understand?  Visit the [HomeSpan API Reference](Reference.md) for details on all HomeSpan objects, functions, and methods.  Have a more general question?  See if it's been answered on the [HomeSpan FAQ](FAQ.md) page or any of the [Disussion](https://github.com/HomeSpan/HomeSpan/discussions) or [Issues](https://github.com/HomeSpan/HomeSpan/issues) pages.  If not, feel free to join the Discusion by adding a new question.
 
-Ready to start creating your own HomeSpan sketches?  Check out the [HomeSpan Services and Characteristics](ServiceList.md) page for a full list of all the HomeKit Services and Characteristics supported by HomeSpan, as well as the [HomeSpan Categories](Categories.md) page for a list of all supported HomeKit Categories.  And don't forget to use Apple's [HomeKit Accessory Protocol Specification, Release R2 (HAP-R2)](https://developer.apple.com/homekit/specification/) as your go-to reference for details on every Service and Characteristic.
+Ready to start creating your own HomeSpan sketches?  Check out the [HomeSpan Services and Characteristics](ServiceList.md) page for a full list of all the HomeKit Services and Characteristics supported by HomeSpan, as well as the [HomeSpan Categories](Categories.md) page for a list of all supported HomeKit Categories.  And don't forget to use Apple's HomeKit Accessory Protocol Specification, Release R2 (HAP-R2) as your go-to reference for details on every Service and Characteristic.
 
 While developing your sketch remember to utilize the Arduino Serial Monitor.  HomeSpan produces extensive diagnostics that will help you debug your sketches as well as monitor all aspects of the HomeSpan device.  You'll also be able to control various aspects of HomeSpan from the Serial Monitor using the [HomeSpan Command-Line Interface (CLI)](CLI.md), including configuring the device's WiFi Credentials and HomeKit Setup Code.
 
@@ -72,4 +72,4 @@ Finally, disconnect your HomeSpan device from the computer and power it directly
 
 ---
 
-[↩️](README.md) Back to the Welcome page
+[↩️](../README.md) Back to the Welcome page
