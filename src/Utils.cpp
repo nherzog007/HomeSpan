@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2024 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -51,7 +51,8 @@ char *Utils::readSerial(char *c, int max){
 
   while(1){
 
-    while(!Serial.available());       // wait until there is a new character
+    while(!Serial.available())             // wait until there is a new character
+      vTaskDelay(5);
     
     buf=Serial.read();
     
@@ -70,6 +71,20 @@ char *Utils::readSerial(char *c, int max){
   } // while(1)
   
 } // readSerial
+
+//////////////////////////////////////
+
+char *Utils::stripBackslash(char *c){
+
+  size_t n=strlen(c);
+  char *p=c;
+  for(int i=0;i<=n;i++){
+    *p=c[i];
+    if(*p!='\\')
+      p++;
+  }
+  return(c);  
+}
 
 //////////////////////////////////////
 
@@ -109,12 +124,12 @@ PushButton::PushButton(int pin, triggerType_t triggerType){
     for(int i=0;i<calibCount;i++)
       threshold+=touchRead(pin);
     threshold/=calibCount;
-#if SOC_TOUCH_VERSION_1
+#if defined(SOC_TOUCH_VERSION_1) || SOC_TOUCH_SENSOR_VERSION==1
     threshold/=2;
-    LOG0("Touch Sensor at pin=%d used for calibration.  Triggers when sensor reading < %d.\n",pin,threshold);
-#elif SOC_TOUCH_VERSION_2
+    LOG0("Touch Sensor at pin=%d used for calibration.  Triggers when sensor reading < %u.\n",pin,threshold);
+#else
     threshold*=2;
-    LOG0("Touch Sensor at pin=%d used for calibration.  Triggers when sensor reading > %d.\n",pin,threshold);
+    LOG0("Touch Sensor at pin=%d used for calibration.  Triggers when sensor reading > %lu.\n",pin,threshold);
 #endif
   }
 #endif
@@ -267,7 +282,8 @@ int PushButton::type(){
 //////////////////////////////////////
 
 void PushButton::wait(){  
-  while(triggerType(pin));
+  while(triggerType(pin))
+    vTaskDelay(5);
 }
 
 //////////////////////////////////////
@@ -278,4 +294,4 @@ void PushButton::reset(){
 
 //////////////////////////////////////
 
-touch_value_t PushButton::threshold=0;
+PushButton::touch_value_t PushButton::threshold=0;

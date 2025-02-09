@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2024 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -26,67 +26,28 @@
  ********************************************************************************/
 
 #include "HomeSpan.h"
-
-struct LED_Service : Service::LightBulb {
-
-  int ledPin;
-  SpanCharacteristic *power;
-  
-  LED_Service(int ledPin) : Service::LightBulb(){
-    power=new Characteristic::On();
-    this->ledPin=ledPin;
-    pinMode(ledPin,OUTPUT);    
-  }
-
-  boolean update(){            
-    digitalWrite(ledPin,power->getNewVal());   
-    return(true);  
-  }
-
-};
-      
-//////////////////////////////////////
-
-struct invertedLED : Blinkable {        // create a child class derived from Blinkable
-
-  int pin;                              // variable to store the pin number
-  
-  invertedLED(int pin) : pin{pin} {     // constructor that initializes the pin parameter
-    pinMode(pin,OUTPUT);                // set the pin to OUTPUT
-    digitalWrite(pin,HIGH);             // set pin HIGH (which is off for an inverted LED)
-  }
-
-  void on() override { digitalWrite(pin,LOW); }        // required function on() - sets pin LOW
-  void off() override { digitalWrite(pin,HIGH); }      // required function off() - sets pin HIGH
-  int getPin() override { return(pin); }               // required function getPin() - returns pin number
-};
-
-
-//////////////////////////////////////
+#include "FeatherPins.h"
 
 void setup() {
-  
+ 
   Serial.begin(115200);
 
-//  homeSpan.setLogLevel(-1);
-//  homeSpan.setSerialInputDisable(true);
-  homeSpan.enableOTA();
+  delay(1000);
 
-  homeSpan.setStatusDevice(new invertedLED(13));    // set Status LED to be a new Blinkable device attached to pin 13
-  homeSpan.setStatusAutoOff(30);
+  homeSpan.setLogLevel(2);
+           
+  homeSpan.begin(Category::Lighting,"HomeSpan Test");
 
-  homeSpan.begin(Category::Lighting,"HomeSpan LED");
-  
-  new SpanAccessory();   
-    new Service::AccessoryInformation(); 
+  new SpanAccessory();
+    new Service::AccessoryInformation();  
       new Characteristic::Identify();
-    new LED_Service(13);  
+    new Service::LightBulb();
+      new Characteristic::On();      
 }
 
 //////////////////////////////////////
 
-void loop(){ 
+void loop(){
+  
   homeSpan.poll();
 }
-
-//////////////////////////////////////
