@@ -9,9 +9,9 @@ Requirements to run HomeSpan depend on which version you choose:
 |HomeSpan Version | Arduino-ESP32 Board Manager | Partition Scheme | Supported Chips|
 |:---:|:---:|:---:|---|
 |1.9.1 or earlier | v2.0.0 - v2.0.17 | *Default* (1.3MB APP) | ESP32, S2, S3, C3 |
-|2.0.0 or later | v3.0.2 - **v3.1.0**<sup>*</sup> | *Minimal SPIFFS* (1.9MB APP) | ESP32, S2, S3, C3, *and C6* |
+|2.0.0 or later | v3.0.2 - **v3.2.0**<sup>*</sup> | *Minimal SPIFFS* (1.9MB APP) | ESP32, S2, S3, C3, *and C6* |
 
-<sup>*</sup>HomeSpan has been tested through **version 3.1.0** of the Arduino-ESP32 Board Manager (built on IDF 5.3.2).  Later releases may work fine, but have not (yet) been tested.  Note HomeSpan does not support the use of alpha, beta, or pre-release candidates of the Arduino-ESP32 Board Manager - testing is only done on production releases of the Board Manager.
+<sup>*</sup>HomeSpan has been tested through **version 3.2.0** of the Arduino-ESP32 Board Manager (built on IDF 5.4.1).  Later releases may work fine, but have not (yet) been tested.  Note HomeSpan does not support the use of alpha, beta, or pre-release candidates of the Arduino-ESP32 Board Manager - testing is only done on production releases of the Board Manager.
 
 **ADDITIONAL REQUIREMENTS**:  Apple's HomeKit architecture [requires the use of a Home Hub](https://support.apple.com/en-us/HT207057) (either a HomePod or Apple TV) for full and proper operation of any HomeKit device, including those based on HomeSpan.  ***Use of HomeSpan without a Home Hub is NOT supported.***
 
@@ -59,78 +59,48 @@ Requirements to run HomeSpan depend on which version you choose:
   * Launch the WiFi Access Point
 * A standalone, detailed End-User Guide
 
-## ❗Latest Update - HomeSpan 2.1.0 (12/27/2024)
+## ❗Latest Update - HomeSpan 2.1.2 (05/08/2025)
 
-* **Integrated Support for Ethernet Connectivity!**
+### Updates and Corrections
 
-  * no new homeSpan methods are required.  Instead, during start-up HomeSpan checks if you've instructed the ESP32 to establish an Ethernet connection, and if so it will switch into "Ethernet mode" and not attempt to connect to your network via WiFi
-  * once in Ethernet mode, HomeSpan customizes some of the output to the Serial Monitor and Web Log so it is clear Ethernet, and not WiFi, connectivity is being used
-  * HomeSpan handles all reporting of connects/disconnects/reconnects just as it normally does for WiFi connections
-  * to establish Ethernet connectivity, simply use the Arduino-ESP32's ETH library by calling `ETH.begin()` in your sketch with the appropriate parameters for your Ethernet board (assuming the Arduino-ESP32 library supports your board)
-    * you must call `ETH.begin()` before calling `homeSpan.begin()`
-    * you do **not** need to include `ETH.h` in your sketch
-    * note the Arduino-ESP32 ETH library supports both direct-connect PHY as well as standalone SPI-based Ethernet boards
-  * adds new homeSpan method `setConnectionCallback()`, which is a renamed version of the `setWifiCallbackAll()` method (now deprecated, see below) to reflect the fact that this method can be used with both Ethernet and WiFi connections
+* **Added UUID validation for Custom Services**
+  * reports an error in CLI at startup if invalid Service UUID is found
+  * similar to existing UUID validation for Custom Characteristics
 
-* **WiFi Enhancements and New WiFi Management Methods**
+* **Renamed example sketch *RemoteDevice8286.ino* to *RemoteDevice8266.ino***
+  * corrects a long-standing typo in the filename
 
-  * when connecting to a WiFi mesh network with multiple access points, HomeSpan now **automatically connects to the access point with the strongest WiFi signal** (i.e. the greatest RSSI)
-    * previously HomeSpan would simply connect to the first access point it found that matched the SSID specified by the user, even if other access points with the same SSID had stronger signals
-    * the BSSID (6-byte MAC address) of the access point to which HomeSpan is currently connected is provided in the Web Log as well as in the Serial Monitor in response to the 's' CLI command
+* **Modified OTA updating so that the HomeSpan check for its Magic Cookie is only made if uploading a new *sketch***
+  * avoids OTA aborting when OTA is used to upload SPIFFS data
 
-  * added new homeSpan method `setConnectionTimes()` that allows users to fine-tune how long HomeSpan waits for each connection attempt when trying to connect to a WiFi network
-  
-  * added new homeSpan method `setWifiBegin()` that allows users to create an alternative function HomeSpan calls **instead of** `WiFi.begin()` when attempting to connect to a WiFi network
-
-    * provides ability to create customizations, such as connecting to an enterprise network, or changing the WiFi power while connectivity is being established (required for some ESP32 boards with a misconfigured WiFi radio)
-    
-  * added new homeSpan method `enableWiFiRescan()` that causes HomeSpan to periodically re-scan for all access points matching the configured SSID and automatically switches to the access point with the strongest signal
-     * useful after a mesh network is rebooted and HomeSpan initially reconnects to a more distance access point because a closer one with a stronger signal has not yet fully rebooted
-       
-  * added new homeSpan method `addBssidName()` that allows users to create optional display names for each access point in a WiFi mesh network according to their 6-byte BSSID addresses
-     * when defined, HomeSpan will display both this name and the BSSID of an access point whenever presenting info on the Serial Monitor or writing to the Web Log
-       
-  * see the [API Reference](docs/Reference.md) page for full details, as well as the new [HomeSpan WiFi and Ethernet Connectivity](docs/Networks.md) page for a high-level discussion of HomeSpan's connectivity options
-
-* **DEPRECATIONS**
-  * `setWifiCallbackAll()` has been deprecated and renamed to `setConnectionCallback()` to reflect the fact this callback can be used for both WiFi and Ethernet connections
-  * `setWifiCallback()` has been deprecated --- the more generic `setConnectionCallback()` should be used instead
-    * requires any existing callbacks to be upgraded to add a single integer argument representing the number of connection attempts, similar to how `setWifiCallbackAll()`, and now `setConnectionCallback()`, work
-  * both `setWifiCallbackAll()` and `setWifiCallback()` will be removed in a future version of HomeSpan.  Please update your sketches to avoid incompatibility with these future versions 
-
-* **New CLI Commands**
-  
-  * 'D' - forces HomeSpan to disconnect and then automatically re-connect to the configured WiFi network
-  * 'Z' - scans a user's WiFi network environment and displays information about each SSID (including each BSSID for mesh networks with multiple access points broadcasting the same SSID) on the Serial Monitor
-  * see the [Command Line Interface (CLI)](docs/CLI.md) page for full details
-
-* **New Multi-Threading Management**
-
-  * made Web Log writing/reading thread-safe
-    * fixes a latent bug related to a race condition between displaying the web log and writing a log record when the separate thread HomeSpan creates at start-up to handle initial contact with an NTP server records the time found
-
-  * made HomeSpan autopolling thread-safe
-    * adds two new macros, `homeSpanPAUSE` and `homeSpanRESUME`, that allow users to temporarily suspend the HomeSpan polling task once it completes its current run
-    * allows users to make modifications to HomeSpan Characteristics and perform any other HomeSpan functions from a separate thread without worrying about inconsistencies if HomeSpan polling was being run at the same time
-    * typically used when your sketch calls `homeSpan.autoPoll()` to run HomeSpan polling in a separate background task *and* you also want to make separate modifications to existing HomeSpan Characteristics by using `getVal()` and `setVal()` from within the main Arduino `loop()` (instead of, or in addition to, modifying these Characteristics from within their Service loops)
-      
-  * see the [API Reference](docs/Reference.md) page for full details, as well as a new [MultiThreading](examples/Other%20Examples/MultiThreading) Example that demonstrates the use of multi-threading using these macros
-
-* **Web Log Enhancements**
-
-  * Web Log can now auto-refresh from browser
-    * if a Web Log request from a browser includes the query string, *refresh=N*, HomeSpan will add an HTTP Refresh response header to the HTML it serves back to the browser to cause it to auto-refresh the Web Log request every *N* seconds
-    * example: *http<nolink>://homespan-4e8eb8504e59.local/status?refresh=10* 
-
-  * Web Log requests are now case-insensitive
-    * example: *http<nolink>://homespan-4e8eb8504e59.local/STATUS?REFRESH=10* is equivalent to above
+* **Refactored the JSON parsing logic that handles PUT Characteristic requests from HomeKit**  
+  * now properly supports any JSON-allowed Unicode character used in a JSON string value, from U+0020 to U+10FFFF
  
-* **Bug Fixes**
-  * Fixes a latent bug that prevented compilation when the homeSpan methods `controllerListBegin()` and `controllerListEnd()` were used in a sketch
- 
-* **Known Issues**
-  * Under v3.1.0 of the Arduino-ESP32 Board Manager, it is not possible to call an external NTP Server to set the time on C6 chips (all other chips unaffected).  See https://github.com/espressif/arduino-esp32/issues/10754 for details.
-      
+    * allows string-based Characteristics to include escaped quotes, escaped solidus and reverse solidus, and any of the JSON token characters *,:[]{}* that would have previously caused a parsing error
+  * also now allows for empty string-based Characteristics (previously would have led to a parsing error)
+
+* **Added new `setMaxStringLength(uint8_t n)` method to Characteristics**
+  * allows user to change maximum length of string-based Characteristics from HAP default of 64 to *n* (less than 256)
+  * though specified by HAP, this value does not seem to be used by HomeKit, and this method does not appear necessary
+
+* **Added new *homeSpan* method `assumeTimeAcquired()`**
+  * calling this method tells HomeSpan to assume that you have acquired the time using your own code
+  * useful if you don't want to specify a *timeServerURL* when enabling the Web Log, but would rather acquire it manually
+
+* **Added new *homeSpan* method `setGetCharacteristicsCallback(void (*func)(const char *getCharList))`**
+  * sets an optional user-defined callback function, *func*, to be called by HomeSpan whenever it receives a *GET /characteristics* request from HomeKit
+  * HomeKit generally sends this request to every paired device each time the Home App is opened on an iPhone or Mac
+  * this callback is useful in circumstances where the current state of a sensor-style Characteristic must be read by HomeSpan using a separate "expensive" process that should be called only when needed as opposed to being continuously updated in a Services `loop()` method
+  * the function *func* must be of type void and accept one argument of type *const char \** into which HomeSpan passes the list of Characteristic AID/IID pairs that HomeKit provided in its HTTP *GET* request
+  * *getCharList* can be used to determine if the HTTP *GET* request includes the AID/IID pair for any specific Characteristic
+    * this allows the user to act on the callback based on which specific Characteristics were requested by HomeKit
+    * see **new helper SpanCharacteristic method `foundIn(const char *getCharList)`** that returns *true* or *false* depending on whether the AID/IID for a specific Characteristic is found in *getCharList*
+    * for completeness, **also added `uint32_t getAID()` methods** to each of the SpanAccessory, SpanService, and SpanCharacteristic classes
+
+* **Explicitly added added `#include <mutex>` to *HomeSpan.cpp* to address compatibility issue with Arduino-ESP32 v3.2.0**
+
+* **Fixed bug in `Pixel::getPin()` that would report channel number instead of pin number**
+        
 See [Releases](https://github.com/HomeSpan/HomeSpan/releases) for details on all changes and bug fixes included in this update.
 
 # HomeSpan Resources
@@ -148,6 +118,7 @@ HomeSpan includes the following documentation:
 * [HomeSpan API Reference](docs/Reference.md) - a complete guide to the HomeSpan Library API
 * [HomeSpan QR Codes](docs/QRCodes.md) - create and use QR Codes for pairing HomeSpan devices
 * [HomeSpan OTA](docs/OTA.md) - update your sketches Over-the-Air directly from the Arduino IDE without a serial connection
+* [HomeSpan Watchdog Timer](docs/WDT.md) - optional protection that can trigger an automatic reboot if your sketch hangs or freezes for an extended period of time
 * [HomeSpan PWM](docs/PWM.md) - integrated control of standard LEDs and Servo Motors using the ESP32's on-chip PWM peripheral
 * [HomeSpan RFControl](docs/RMT.md) - easy generation of RF and IR Remote Control signals using the ESP32's on-chip RMT peripheral
 * [HomeSpan Pixels](docs/Pixels.md) - integrated control of addressable one- and two-wire RGB and RGBW LEDs and LED strips

@@ -136,6 +136,12 @@ The following **optional** `homeSpan` methods enable additional features and pro
   * this command causes HomeSpan to ignore, but does not otherwise alter, any password stored using the 'O' command 
   * returns 0 if enabling OTA was successful, or -1 and reports an error to the Serial Monitor if not
 
+* `void markSketchOK()`
+  * marks the OTA State of the currently-running partition as *VALID*
+  * must be called from within a sketch when the HomeSpan OTA Rollback mechanism has been enabled to avoid the bootloader from automatically rolling back to a prior version of your sketch upon the next reboot of the device
+  * to enable the HomeSpan OTA Rollback mechanism add `#include "SpanRollback.h"` to the top of your sketch
+  * see [HomeSpan OTA Rollback](OTA.md#ota-rollback) for details 
+
 * `Span& enableAutoStartAP()`
   * enables automatic start-up of WiFi Access Point if WiFi Credentials are **not** found at boot time
   * methods to alter the behavior of HomeSpan's Access Point, such as `setApTimeout()`, must be called prior to `enableAutoStartAP()` to have an effect  
@@ -206,6 +212,9 @@ The following **optional** `homeSpan` methods enable additional features and pro
 
 * `Span& setConnectionCallback(void (*func)(int count))`
   * sets an optional user-defined callback function, *func*, to be called by HomeSpan every time WiFi or Ethernet connectivity has been established or re-established after a disconnect.  The function *func* must be of type *void* and accept a single *int* argument, *count*, into which HomeSpan passes the number of times WiFi or Ethernet connectivity has been established or re-established (i.e. *count*=1 on initial WiFi or Ethernet connection; *count*=2 if re-established after the first disconnect, etc.)
+ 
+* `Span& useEthernet()`
+  * forces HomeSpan to use Ethernet instead of WiFi, even if ETH has not yet been called or an Ethernet card has not been found prior to `homeSpan.begin()` being called
     
 * `Span& setPairCallback(void (*func)(boolean status))`
   * sets an optional user-defined callback function, *func*, to be called by HomeSpan upon completion of pairing to a controller (*status=true*) or unpairing from a controller (*status=false*)
@@ -229,6 +238,20 @@ The following **optional** `homeSpan` methods enable additional features and pro
   * returns a pre-defined character string message representing *s*, which must be of enum type [HS_STATUS](HS_STATUS.md)
   * typically used in conjunction with `setStatusCallback()` above
 
+* `Span& setPollingCallback(void (*func)())`
+  * sets an optional user-defined callback function, *func*, to be called by HomeSpan *one time* upon completing its first pass through the HomeSpan `poll()` function
+  * the function *func* must be of type *void* and have no arguments
+
+* `Span& setGetCharacteristicsCallback(void (*func)(const char *getCharList))`
+  * sets an optional user-defined callback function, *func*, to be called by HomeSpan whenever it receives a *GET /characteristics* request from HomeKit
+    * HomeKit generally sends this request to every paired device each time the Home App is opened on an iPhone or Mac
+  * note *func* is called **prior** to HomeSpan reading the requested Characteristics and sending their values back to HomeKit
+    * this callback is useful in circumstances where the current state of a sensor-style Characteristic must be read by HomeSpan using a separate "expensive" process that should be called only when needed as opposed to being continuously updated in a Services `loop()` method
+  * the function *func* must be of type *void* and accept one argument of type *const char \** into which HomeSpan passes the list of Characteristic AID/IID pairs that HomeKit provided in its HTTP GET request
+    * *getCharList* can be used to determine if the HTTP GET request includes the AID/IID pair for any specific Characteristic
+    * this allows the user to act on the callback based on which specific Characteristics were requested by HomeKit
+    * see `SpanCharacteristic::foundIn(const char *getCharList)`
+
 * `Span& setPairingCode(const char *s)`
   * sets the Setup Pairing Code to *s*, which **must** be exactly eight numerical digits (no dashes)
   * example: `homeSpan.setPairingCode("46637726");`
@@ -241,10 +264,15 @@ The following **optional** `homeSpan` methods enable additional features and pro
   * if unspecified, HomeSpan uses "n/a" as the default version text
   * HomeSpan displays the version of the sketch in the Arduino IDE Serial Monitor upon start-up
   * HomeSpan also includes both the version of the sketch, as well as the version of the HomeSpan library used to compile the sketch, as part of its HAP MDNS broadcast.  This data is *not* used by HAP.  Rather, it is for informational purposes and allows you to identify the version of a sketch for a device that is updated via [OTA](OTA.md), rather than connected to a computer
-  
+
 * `const char *getSketchVersion()`
-  * returns the version of a HomeSpan sketch, as set using `void setSketchVersion(const char *sVer)`, or "n/a" if not set
+  * returns the version of a HomeSpan sketch, as set using `setSketchVersion(const char *sVer)` above, or "n/a" if not set
   * can by called from anywhere in a sketch
+
+* `Span& setCompileTime(const char *compTime)`
+  * sets the compilation time of a HomeSpan sketch to *compTime*, which can be any arbitrary character string
+  * if unspecified, HomeSpan derives a compTime string from the `__DATE__` and `__TIME__` macros provided by the compiler when the sketch is compiled
+  * HomeSpan displays the compilation time of the sketch in the Arduino IDE Serial Monitor upon start-up
 
 * `Span& enableWebLog(uint16_t maxEntries, const char *timeServerURL, const char *timeZone, const char *logURL)`
   * enables a rolling Web Log that displays the most recent *maxEntries* entries created by the user with the `WEBLOG()` macro.  Parameters, and their default values if unspecified, are as follows:
@@ -277,6 +305,11 @@ The following **optional** `homeSpan` methods enable additional features and pro
    * to avoid creating a single large text buffer, HomeSpan splits the HTML for the Web Log into chunks of 1024 bytes and repeatedly calls *f()* until all the HTML has been streamed; HomeSpan then makes a final call to *f()* with *htmlBuf* set to NULL indicating to the user that the end of the HTML text has been reached
    * this command is primarily used to redirect Web Log pages to a user-defined process for alternative handling, display, or transmission
    * see [Message Logging](Logging.md) for more details
+
+* `void assumeTimeAcquired()`
+  * calling this method tells HomeSpan to assume that you have acquired the time using your own code
+  * useful if you don't want to specify a *timeServerURL* when enabling the Web Log, but would rather acquire it manually
+    * note if a *timeServerURL* is not specified when enabling the Web Log, the Web Log records will show the time as "Unknown" unless and until you call this method   
   
 * `void processSerialCommand(const char *CLIcommand)`
   * processes the *CLIcommand* just as if were typed into the Serial Monitor
@@ -364,6 +397,27 @@ The following **optional** `homeSpan` methods provide additional run-time functi
     }
     ```
     </details>
+
+* `Span& enableWatchdog(uint16_t nSeconds)`
+  * creates a HomeSpan *task watchdog* that triggers a reboot of the device if the HomeSpan `poll()` function is not run at least once every *nSeconds*
+    * *nSeconds* must be equal to, or greater than, the ESP32 default task watchdog timeout period specified in the IDF macro `CONFIG_ESP_TASK_WDT_TIMEOUT_S` (typically 5 seconds)
+    * if *nSeconds* is set to a duration less than `CONFIG_ESP_TASK_WDT_TIMEOUT_S`, or if it is left blank, the timeout duration will be set to `CONFIG_ESP_TASK_WDT_TIMEOUT_S`
+  * enabling the HomeSpan task watchdog timer does not alter whether any other tasks, including the ESP32's IDLE tasks, are, or are not, also subscribed to the task watchdog timer
+  * calling `enableWatchdog(nSeconds)` when the HomeSpan watchdog has already been enabled with a different value of *nSeconds* changes the timeout duration to the new value of *nSeconds* specified 
+  * note the ESP32 task watchdog timer only supports a single timeout duration for all tasks subscribing to the task watchdog.  When the HomeSpan watchdog is enabled, *nSeconds* will therefore be used as the new timeout duration for any and all other tasks (including any of the ESP32's IDLE tasks) that are also subscribed to the tasks watchdog timer
+  * see the [HomeSpan Watchdog Timer](WDT.md) page for details
+
+* `void disableWatchdog()`
+  * disables the HomeSpan *task watchdog*, if it has been enabled, else does nothing
+  * has no impact any other tasks that may also be subscribed to the task watchdog timer
+  * has no impact on the timeout duration
+  * see the [HomeSpan Watchdog Timer](WDT.md) page for details
+
+* `void resetWatchdog()`
+  * resets the HomeSpan watchdog timer (if it has been enabled) and then pauses for 1 ms by calling `vTaskDelay(1)` to yield and allow other tasks of an equal or lower priority acquire processing time
+  * users generally **do not** need to call this method since HomeSpan already does so whenever the `poll()` function runs
+  * this is needed **only** if you enable the HomeSpan watchdog **and** you add code to a HomeSpan sketch that blocks the `poll()` function or prevents it from running for extended periods of time
+  * see the [HomeSpan Watchdog Timer](WDT.md) page for details
  
 ---
 
@@ -405,18 +459,21 @@ A fully worked example showing how to use `autoPoll()` and `homeSpanPAUSE` to au
 
 Creating an instance of this **class** adds a new HAP Accessory to the HomeSpan HAP Database.
 
-  * every HomeSpan sketch requires at least one Accessory
-  * a sketch can contain a maximum of 150 Accessories per sketch (if exceeded, a runtime error will the thrown and the sketch will halt)
-  * there are no associated methods
-  * the argument *aid* is optional.
-  
-    * if specified and *not* zero, the Accessory ID is set to *aid*.
-    * if unspecified, or equal to zero, the Accessory ID will be set to one more than the ID of the previously-instantiated Accessory, or to 1 if this is the first Accessory.
-    * the first Accessory instantiated must always have an ID=1 (which is the default if *aid* is unspecified).
-    * setting the *aid* of the first Accessory to anything but 1 throws an error during initialization.
-    
-  * you must call `homeSpan.begin()` before instantiating any Accessories
-  * example: `new SpanAccessory();`
+* every HomeSpan sketch requires at least one Accessory
+* a sketch can contain a maximum of 150 Accessories per sketch (if exceeded, a runtime error will the thrown and the sketch will halt)
+* there are no associated methods
+* the argument *aid* is optional:
+  * if specified and *not* zero, the Accessory ID is set to *aid*
+  * if unspecified, or equal to zero, the Accessory ID will be set to one more than the ID of the previously-instantiated Accessory, or to 1 if this is the first Accessory
+  * the first Accessory instantiated must always have an ID=1 (which is the default if *aid* is unspecified)
+  * setting the *aid* of the first Accessory to anything but 1 throws an error during initialization
+* you must call `homeSpan.begin()` before instantiating any Accessories
+* example: `new SpanAccessory();`
+
+The following methods are supported:
+
+* `uint32_t getAID()`
+  * returns the Accessory ID (AID)
   
 ## *SpanService()*
 
@@ -469,7 +526,10 @@ The following methods are supported:
      
 * `uint32_t getIID()`
   * returns the IID of the Service
-    
+
+* `uint32_t getAID()`
+  * returns the AID of the Accessory to which the Service belongs
+      
 ## *SpanCharacteristic(value [,boolean nvsStore])*
   
 This is a **base class** from which all HomeSpan Characteristics are derived, and should **not** be directly instantiated.  Rather, to create a new Characteristic instantiate one of the HomeSpan Characteristics defined in the [Characteristic](ServiceList.md) namespace.
@@ -536,6 +596,12 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
 
 * `void setString(const char *value [,boolean notify])`
   * equivalent to `setVal(value)`, but used exclusively for string-characteristics (i.e. a null-terminated array of characters)
+
+* `SpanCharacteristic *setMaxStringLength(uint8_t n)`
+  * changes the maximum allowed length of a string-characteristic from the HAP default (64) to *n*
+  * note the Home App seems to properly process strings that exceed 64 characters without needing to reset the maximum length
+  * this method is included in HomeSpan only for completeness with HAP - it is likely not needed
+  * returns a pointer to the Characteristic itself so that the method can be chained during instantiation
  
 #### The following methods are supported for DATA (i.e. byte-array) Characteristics:
 
@@ -615,6 +681,13 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
 * `uint32_t getIID()`
   * returns the IID of the Characteristic
 
+* `uint32_t getAID()`
+  * returns the AID of the Accessory to which the Characteristic belongs
+
+* `boolean foundIn(const char *getCharList)`
+  * returns *true* if the AID/IID pair for the Characteristic is found in *getCharList*, else returns *false*
+  * *getCharList* is typically passed by HomeSpan to an optional user-defined callback function as specified in *homeSpan.setGetCharacteristicsCallback()*
+  
 ### *SpanButton(int pin, uint16_t longTime, uint16_t singleTime, uint16_t doubleTime, boolean (\*triggerType)(int))*
 
 Creating an instance of this **class** attaches a pushbutton handler to the ESP32 *pin* specified.
